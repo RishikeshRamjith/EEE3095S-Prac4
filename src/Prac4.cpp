@@ -1,10 +1,10 @@
 /*
  * Prac4.cpp
- * 
+ *
  * Originall written by Stefan Schröder and Dillion Heald
- * 
+ *
  * Adapted for EEE3096S 2019 by Keegan Crankshaw
- * 
+ *
  * This file is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -31,15 +31,16 @@ bool threadReady = false; //using this to finish writing the first column at the
 // Configure your interrupts here.
 // Don't forget to use debouncing.
 void play_pause_isr(void){
-    //Write your logis here
+    playing = !playing;
+    //need to add debouncing
 }
 
 void stop_isr(void){
-    // Write your logic here
+    stopped = true;
 }
 
 /*
- * Setup Function. Called once 
+ * Setup Function. Called once
  */
 int setup_gpio(void){
     //Set up wiring Pi
@@ -51,9 +52,9 @@ int setup_gpio(void){
     return 0;
 }
 
-/* 
+/*
  * Thread that handles writing to SPI
- * 
+ *
  * You must pause writing to SPI if not playing is true (the player is paused)
  * When calling the function to write to SPI, take note of the last argument.
  * You don't need to use the returned value from the wiring pi SPI function
@@ -63,15 +64,16 @@ void *playThread(void *threadargs){
     // If the thread isn't ready, don't do anything
     while(!threadReady)
         continue;
-    
+
     //You need to only be playing if the stopped flag is false
     while(!stopped){
         //Code to suspend playing if paused
-		//TODO
-        
+		while(!playing)
+            continue;
+
         //Write the buffer out to SPI
         //TODO
-		
+
         //Do some maths to check if you need to toggle buffers
         buffer_location++;
         if(buffer_location >= BUFFER_SIZE) {
@@ -79,7 +81,7 @@ void *playThread(void *threadargs){
             bufferReading = !bufferReading; // switches column one it finishes one column
         }
     }
-    
+
     pthread_exit(NULL);
 }
 
@@ -88,38 +90,38 @@ int main(){
 	if(setup_gpio()==-1){
         return 0;
     }
-    
+
     /* Initialize thread with parameters
      * Set the play thread to have a 99 priority
      * Read https://docs.oracle.com/cd/E19455-01/806-5257/attrib-16/index.html
-     */ 
-    
+     */
+
     //Write your logic here
 	pthread_attr_t tattr;
     pthread_t thread_id;
     int newprio = 99;
     sched_param param;
-    
+
     pthread_attr_init (&tattr);
     pthread_attr_getschedparam (&tattr, &param); /* safe to get existing scheduling param */
     param.sched_priority = newprio; /* set the priority; others are unchanged */
     pthread_attr_setschedparam (&tattr, &param); /* setting the new scheduling param */
     pthread_create(&thread_id, &tattr, playThread, (void *)1); /* with new priority specified *
-    
+
     /*
      * Read from the file, character by character
      * You need to perform two operations for each character read from the file
      * You will require bit shifting
-     * 
+     *
      * buffer[bufferWriting][counter][0] needs to be set with the control bits
      * as well as the first few bits of audio
-     * 
+     *
      * buffer[bufferWriting][counter][1] needs to be set with the last audio bits
-     * 
+     *
      * Don't forget to check if you have pause set or not when writing to the buffer
-     * 
+     *
      */
-     
+
     // Open the file
     char ch;
     FILE *filePointer;
@@ -156,15 +158,14 @@ int main(){
         }
 
     }
-     
+
     // Close the file
     fclose(filePointer);
-    printf("Complete reading"); 
-	 
+    printf("Complete reading");
+
     //Join and exit the playthread
-	pthread_join(thread_id, NULL); 
+	pthread_join(thread_id, NULL);
     pthread_exit(NULL);
-	
+
     return 0;
 }
-
