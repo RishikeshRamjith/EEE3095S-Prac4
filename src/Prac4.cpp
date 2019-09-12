@@ -26,7 +26,7 @@ unsigned char buffer[2][BUFFER_SIZE][2];
 int buffer_location = 0;
 bool bufferReading = 0; //using this to switch between column 0 and 1 - the first column
 bool threadReady = false; //using this to finish writing the first column at the start of the song, before the column is played
-
+int check;
 
 // Configure your interrupts here.
 // Don't forget to use debouncing.
@@ -37,6 +37,7 @@ void play_pause_isr(void){
 
 void stop_isr(void){
     stopped = true;
+    //need to add debouncing
 }
 
 /*
@@ -46,9 +47,11 @@ int setup_gpio(void){
     //Set up wiring Pi
     wiringPiSetup();
     //setting up the buttons
-	//TODO
+	pinMode(PLAY_BUTTON, INPUT);
+    pinMode(STOP_BUTTON, INPUT);
     //setting up the SPI interface
-    //TODO
+    //SPICLOCK = samplerate*bitwidth*numberOfChannel*8/5 = 16000*8*1*8/5 = 204800 Hz
+    check = wiringPiSetup(SPI_CHAN, SPI_SPEED); //204800 was calculated but this method only support 500000-32000000
     return 0;
 }
 
