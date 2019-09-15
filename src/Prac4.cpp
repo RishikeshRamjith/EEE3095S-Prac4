@@ -28,23 +28,28 @@ bool bufferReading = 0; //using this to switch between column 0 and 1 - the firs
 bool threadReady = false; //using this to finish writing the first column at the start of the song, before the column is played
 
 long lastInterruptTime = 0; // used for debouncing
-int check;
 
 // Configure your interrupts here.
 // Don't forget to use debouncing.
 void play_pause_isr(void){
     long interruptTime = millis();
 
-    if (interruptTime - lastInterruptTime > 200)
+    if (interruptTime - lastInterruptTime > 60)
         playing = !playing;
+
+    lastInterruptTime = interruptTime;
     //need to add debouncing
 }
 
 void stop_isr(void){
     long interruptTime = millis();
 
-    if (interruptTime - lastInterruptTime > 200)
+    if (interruptTime - lastInterruptTime > 60) {
         stopped = true;
+        exit(0);
+    }
+    
+    lastInterruptTime = interruptTime;
     //need to add debouncing
 }
 
@@ -57,14 +62,16 @@ int setup_gpio(void){
 
     //setting up the buttons
 	pinMode(PLAY_BUTTON, INPUT);
+    pullUpDnControl(PLAY_BUTTON, PUD_UP);
     wiringPiISR(PLAY_BUTTON, INT_EDGE_FALLING, &play_pause_isr);
 
     pinMode(STOP_BUTTON, INPUT);
+    pullUpDnControl(STOP_BUTTON, PUD_UP);
     wiringPiISR(STOP_BUTTON, INT_EDGE_FALLING, &stop_isr);
 
     //setting up the SPI interface
-    //SPICLOCK = samplerate*bitwidth*numberOfChannel*8/5 = 16000*8*1*8/5 = 204800 Hz
-    check = wiringPiSPISetup(SPI_CHAN, SPI_SPEED); //204800 was calculated but this method only support 500000-32000000
+    //SPICLOCK = samplerate*bitwidth*numberOfChannel*8/5 = 16000*16*1*8/5 = 409600 Hz
+    wiringPiSPISetup(SPI_CHAN, SPI_SPEED);
     return 0;
 }
 
@@ -88,7 +95,7 @@ void *playThread(void *threadargs){
             continue;
 
         //Write the buffer out to SPI
-        wiringPiSPIDataRW(SPI_CHAN, buffer[bufferReading][buffer_location], 16);
+        wiringPiSPIDataRW(SPI_CHAN, buffer[bufferReading][buffer_location], 2);
 
         //Do some maths to check if you need to toggle buffers
         buffer_location++;
@@ -122,7 +129,7 @@ int main(){
     pthread_attr_getschedparam (&tattr, &param); /* safe to get existing scheduling param */
     param.sched_priority = newprio; /* set the priority; others are unchanged */
     pthread_attr_setschedparam (&tattr, &param); /* setting the new scheduling param */
-    pthread_create(&thread_id, &tattr, playThread, (void *)1); /* with new priority specified *
+    pthread_create(&thread_id, &tattr, playThread, (void *)1); /* with new priority specified */
 
     /*
      * Read from the file, character by character
@@ -159,9 +166,9 @@ int main(){
             continue;
         }
         //Set config bits for first 8 bit packet and OR with upper bits
-        buffer[bufferWriting][counter][0] = 0b01110000 | (ch >> 6); //TODO
+        buffer[bufferWriting][counter][0] = 0b0 << 7 | 0b0 << 6 | 0b1 << 5 | 0b1 << 4 | (ch >> 6 & 0xff);
         //Set next 8 bit packet
-        buffer[bufferWriting][counter][1] = (ch << 2); //TODO
+        buffer[bufferWriting][counter][1] = ch << 2 & 0b11111100;
 
         counter++;
         if(counter >= BUFFER_SIZE+1){
