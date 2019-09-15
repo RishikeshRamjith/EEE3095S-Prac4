@@ -34,7 +34,7 @@ long lastInterruptTime = 0; // used for debouncing
 void play_pause_isr(void){
     long interruptTime = millis();
 
-    if (interruptTime - lastInterruptTime > 60)
+    if (interruptTime - lastInterruptTime > 200)
         playing = !playing;
 
     lastInterruptTime = interruptTime;
@@ -44,7 +44,7 @@ void play_pause_isr(void){
 void stop_isr(void){
     long interruptTime = millis();
 
-    if (interruptTime - lastInterruptTime > 60) {
+    if (interruptTime - lastInterruptTime > 200) {
         stopped = true;
         exit(0);
     }
